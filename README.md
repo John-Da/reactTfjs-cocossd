@@ -1,1 +1,1 @@
-# React Tfjs Object Detection
+# React TFJS Object Detection using COCO SSD
