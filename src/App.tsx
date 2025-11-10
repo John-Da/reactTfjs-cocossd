@@ -1,6 +1,4 @@
 import { useRef, useEffect, useState } from "react";
-import * as tf from "@tensorflow/tfjs";
-import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import "./App.css";
 
 type Mode = "idle" | "video" | "image";
@@ -13,10 +11,10 @@ function App() {
   const [confidence, setConfidence] = useState(0.2);
   const [loading, setLoading] = useState(true);
   const [loadingText, setLoadingText] = useState("Loading model...");
-  const [model, setModel] = useState<cocoSsd.ObjectDetection | null>(null);
+  const [model, setModel] = useState<any>(null); // dynamic import
   const [isDetecting, setIsDetecting] = useState(false);
   const [mode, setMode] = useState<Mode>("idle");
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user"); // front camera default
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
 
   const clearCanvas = () => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -24,21 +22,25 @@ function App() {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   };
 
-  // Detect if device is mobile
   const isMobile = () => /Mobi|Android/i.test(navigator.userAgent);
 
-  // Load model
+  // Load model dynamically
+  const loadModel = async () => {
+    setLoadingText("Loading model...");
+    setLoading(true);
+
+    const tf = await import("@tensorflow/tfjs");
+    await tf.setBackend("webgl");
+    await tf.ready();
+
+    const cocoSsd = await import("@tensorflow-models/coco-ssd");
+    const m = await cocoSsd.load();
+    setModel(m);
+    setLoading(false);
+    console.log("Model loaded");
+  };
+
   useEffect(() => {
-    const loadModel = async () => {
-      setLoadingText("Loading model...");
-      setLoading(true);
-      await tf.setBackend("webgl");
-      await tf.ready();
-      const m = await cocoSsd.load();
-      setModel(m);
-      setLoading(false);
-      console.log("Model loaded");
-    };
     loadModel();
   }, []);
 
@@ -58,19 +60,23 @@ function App() {
         const predictions = await model.detect(videoRef.current!);
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-        
-
-        predictions.forEach((pred) => {
+        predictions.forEach((pred: any) => {
           if (pred.score < confidence) return;
           const [x, y, width, height] = pred.bbox;
+
+          // Mirror for front camera
+          const mirroredX =
+            facingMode === "user" ? canvasRef.current!.width - x - width : x;
+
           ctx.strokeStyle = "#00FFFF";
           ctx.lineWidth = 2;
-          ctx.strokeRect(x, y, width, height);
+          ctx.strokeRect(mirroredX, y, width, height);
+
           ctx.font = "16px Poppins";
           ctx.fillStyle = "#00FFFF";
           ctx.fillText(
             `${pred.class} (${(pred.score * 100).toFixed(1)}%)`,
-            x,
+            mirroredX,
             y > 10 ? y - 5 : 15
           );
         });
@@ -83,9 +89,8 @@ function App() {
 
     detectFrame();
     return () => cancelAnimationFrame(animationId);
-  }, [isDetecting, mode, model, confidence]);
+  }, [isDetecting, mode, model, confidence, facingMode]);
 
-  // Stop camera
   const stopCamera = () => {
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
@@ -94,7 +99,6 @@ function App() {
     }
   };
 
-  // Start video
   const handleStartVideo = async () => {
     if (!model) {
       alert("Model not loaded yet.");
@@ -116,8 +120,8 @@ function App() {
 
     try {
       stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
       });
       if (!videoRef.current) return;
       videoRef.current.srcObject = stream;
@@ -138,14 +142,12 @@ function App() {
     }
   };
 
-  // Switch camera (mobile only)
   const handleSwitchCamera = () => {
     if (!isMobile()) return;
     setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
-    handleStartVideo(); // restart video with new camera
+    handleStartVideo();
   };
 
-  // Select image
   const handleSelectImage = () => {
     if (mode === "video") {
       setIsDetecting(false);
@@ -156,7 +158,6 @@ function App() {
     fileInputRef.current?.click();
   };
 
-  // Image upload & detection
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !model) {
@@ -182,7 +183,7 @@ function App() {
 
       try {
         const predictions = await model.detect(img);
-        predictions.forEach((pred) => {
+        predictions.forEach((pred: any) => {
           if (pred.score < confidence) return;
           const [x, y, width, height] = pred.bbox;
           ctx.strokeStyle = "#00FFFF";
@@ -207,7 +208,6 @@ function App() {
     e.currentTarget.value = "";
   };
 
-  // Clear everything
   const handleClear = () => {
     setIsDetecting(false);
     setMode("idle");

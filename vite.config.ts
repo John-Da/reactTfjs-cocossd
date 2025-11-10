@@ -5,4 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/reactTfjs/',
+  build: {
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          tf: ["@tensorflow/tfjs", "@tensorflow-models/coco-ssd"],
+        },
+      },
+    },
+  },
 })
