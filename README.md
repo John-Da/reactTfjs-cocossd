@@ -27,7 +27,7 @@
   <tr>
     <td>
       <img 
-        alt="demo" width="450"
+        alt="demo" width="500"
         src="https://github.com/John-Da/reactTfjs-cocossd/blob/main/demo.png"
       />
       <img 
