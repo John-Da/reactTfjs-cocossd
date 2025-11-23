@@ -31,7 +31,7 @@
         src="https://github.com/John-Da/reactTfjs-cocossd/blob/main/demo.png"
       />
       <img 
-        alt="demo" width="226"
+        alt="demo" width="180"
         src="https://github.com/John-Da/reactTfjs-cocossd/blob/main/demo1.png"
       />
     </td>
