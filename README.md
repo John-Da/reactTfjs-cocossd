@@ -9,7 +9,7 @@
         <a href="https://john-da.github.io/reactTfjs-cocossd/">
           <img 
             alt="icon" 
-            src="https://img.shields.io/badge/View_Technova_Webpage-%23E34F26.svg?style=for-the-badge&logo=View&logoColor=white"
+            src="https://img.shields.io/badge/Click_for_Demo-%23E34F26.svg?style=for-the-badge&logo=View&logoColor=white"
           />
         </a>
       </p>
