@@ -24,9 +24,6 @@ function App() {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   };
 
-  // Detect if device is mobile
-  const isMobile = () => /Mobi|Android/i.test(navigator.userAgent);
-
   // Load model
   useEffect(() => {
     const loadModel = async () => {
@@ -58,7 +55,7 @@ function App() {
         const predictions = await model.detect(videoRef.current!);
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-        
+
 
         predictions.forEach((pred) => {
           if (pred.score < confidence) return;
@@ -116,8 +113,8 @@ function App() {
 
     try {
       stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode }
       });
       if (!videoRef.current) return;
       videoRef.current.srcObject = stream;
@@ -138,11 +135,42 @@ function App() {
     }
   };
 
-  // Switch camera (mobile only)
-  const handleSwitchCamera = () => {
-    if (!isMobile()) return;
-    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
-    handleStartVideo(); // restart video with new camera
+  // Switch camera
+  const handleSwitchCamera = async () => {
+    const nextFacingMode = facingMode === "user" ? "environment" : "user";
+    setFacingMode(nextFacingMode);
+    if (mode !== "video") return;
+
+    setIsDetecting(false);
+    stopCamera();
+    clearCanvas();
+    setLoadingText("Switching camera...");
+    setLoading(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: nextFacingMode },
+      });
+      if (!videoRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      videoRef.current.srcObject = stream;
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play();
+        if (canvasRef.current && videoRef.current) {
+          canvasRef.current.width = videoRef.current.videoWidth;
+          canvasRef.current.height = videoRef.current.videoHeight;
+        }
+        setIsDetecting(true);
+        setLoading(false);
+      };
+    } catch (err) {
+      console.error("Error switching camera:", err);
+      setMode("idle");
+      setLoading(false);
+    }
   };
 
   // Select image
@@ -249,9 +277,7 @@ function App() {
           <button onClick={handleStartVideo}>
             {mode === "video" ? "Stop Video" : "Start Video"}
           </button>
-          {isMobile() && mode === "video" && (
-            <button onClick={handleSwitchCamera}>Switch Camera</button>
-          )}
+          <button onClick={handleSwitchCamera}>Switch Camera</button>
           <button onClick={handleSelectImage}>Select Image</button>
           <button onClick={handleClear}>Clear</button>
         </div>
