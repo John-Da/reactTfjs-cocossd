@@ -114,22 +114,24 @@ function App() {
     try {
       stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode }
+        video: { facingMode },
       });
-      if (!videoRef.current) return;
-      videoRef.current.srcObject = stream;
-
-      videoRef.current.onloadedmetadata = () => {
-        videoRef.current?.play();
-        if (canvasRef.current && videoRef.current) {
-          canvasRef.current.width = videoRef.current.videoWidth;
-          canvasRef.current.height = videoRef.current.videoHeight;
-        }
-        setIsDetecting(true);
-        setLoading(false);
-      };
+      const video = videoRef.current;
+      if (!video) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      video.srcObject = stream;
+      await video.play();
+      if (canvasRef.current) {
+        canvasRef.current.width = video.videoWidth;
+        canvasRef.current.height = video.videoHeight;
+      }
+      setIsDetecting(true);
+      setLoading(false);
     } catch (err) {
       console.error("Error starting video:", err);
+      stopCamera();
       setMode("idle");
       setLoading(false);
     }
@@ -141,6 +143,8 @@ function App() {
     setFacingMode(nextFacingMode);
     if (mode !== "video") return;
 
+    const currentStream = videoRef.current?.srcObject as MediaStream | null;
+    const currentDeviceId = currentStream?.getVideoTracks()[0]?.getSettings().deviceId;
     setIsDetecting(false);
     stopCamera();
     clearCanvas();
@@ -148,26 +152,37 @@ function App() {
     setLoading(true);
 
     try {
+      const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(
+        (device) => device.kind === "videoinput"
+      );
+      const currentCameraIndex = cameras.findIndex(
+        (camera) => camera.deviceId === currentDeviceId
+      );
+      const nextCamera = cameras.length > 1
+        ? cameras[currentCameraIndex < 0 ? 1 : (currentCameraIndex + 1) % cameras.length]
+        : undefined;
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: nextFacingMode },
+        video: nextCamera
+          ? { deviceId: { exact: nextCamera.deviceId } }
+          : { facingMode: { exact: nextFacingMode } },
       });
-      if (!videoRef.current) {
+      const video = videoRef.current;
+      if (!video) {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
-
-      videoRef.current.srcObject = stream;
-      videoRef.current.onloadedmetadata = () => {
-        videoRef.current?.play();
-        if (canvasRef.current && videoRef.current) {
-          canvasRef.current.width = videoRef.current.videoWidth;
-          canvasRef.current.height = videoRef.current.videoHeight;
-        }
-        setIsDetecting(true);
-        setLoading(false);
-      };
+      video.srcObject = stream;
+      await video.play();
+      if (canvasRef.current) {
+        canvasRef.current.width = video.videoWidth;
+        canvasRef.current.height = video.videoHeight;
+      }
+      setIsDetecting(true);
+      setLoading(false);
     } catch (err) {
       console.error("Error switching camera:", err);
+      stopCamera();
       setMode("idle");
       setLoading(false);
     }
